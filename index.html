@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cotizador Cintas</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --accent: #d4f047;
+    --accent-dim: #a8c038;
+    --text: #f0f0f0;
+    --muted: #888;
+    --danger: #ff4d4d;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; padding: 16px; }
+
+  .header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
+  .header .tag { font-family: var(--mono); font-size: 10px; color: var(--accent); background: #1e2a00; padding: 3px 8px; border-radius: 4px; }
+
+  .section { margin-bottom: 20px; }
+  .section-label { font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+
+  /* Tipo de cinta */
+  .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tipo-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 12px 8px; border-radius: 10px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; text-align: center; }
+  .tipo-btn.active { background: var(--accent); border-color: var(--accent); color: #0f0f0f; }
+  .tipo-btn span { display: block; font-size: 10px; font-family: var(--mono); margin-top: 2px; opacity: .7; }
+
+  /* Medidas */
+  .medidas-grid { display: grid; gap: 8px; }
+  .medida-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .select-wrap { position: relative; }
+  .select-wrap select { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 36px 12px 14px; border-radius: 10px; font-family: var(--sans); font-size: 15px; appearance: none; cursor: pointer; }
+  .select-wrap::after { content: '▾'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 12px; }
+  .select-wrap label { display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 5px; }
+
+  /* Color */
+  .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .color-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 10px 6px; border-radius: 10px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; text-align: center; }
+  .color-btn.active { background: var(--accent); border-color: var(--accent); color: #0f0f0f; }
+  .color-btn.unavailable { opacity: .3; pointer-events: none; }
+
+  /* Cantidad */
+  .qty-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .qty-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 10px 4px; border-radius: 10px; font-family: var(--mono); font-size: 13px; cursor: pointer; transition: all .15s; text-align: center; }
+  .qty-btn.active { background: var(--accent); border-color: var(--accent); color: #0f0f0f; }
+  .qty-btn span { display: block; font-size: 9px; margin-top: 1px; opacity: .7; }
+
+  /* Extras */
+  .extras-grid { display: grid; gap: 8px; }
+  .extra-row { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
+  .extra-row .extra-label { font-size: 13px; }
+  .extra-row .extra-price { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .toggle { width: 40px; height: 22px; background: var(--border); border-radius: 11px; position: relative; transition: background .2s; flex-shrink: 0; }
+  .toggle.on { background: var(--accent); }
+  .toggle::after { content: ''; width: 16px; height: 16px; background: white; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform .2s; }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* Margen */
+  .margen-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .margen-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .margen-header span { font-size: 13px; }
+  .margen-val { font-family: var(--mono); font-size: 16px; color: var(--accent); font-weight: 500; }
+  input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+  /* Resultado */
+  .result-card { background: var(--surface2); border: 1px solid var(--accent); border-radius: 14px; padding: 20px; margin-top: 8px; }
+  .result-invalid { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+  .result-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .result-row .r-label { font-size: 13px; color: var(--muted); }
+  .result-row .r-val { font-family: var(--mono); font-size: 14px; }
+  .result-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+  .result-total { display: flex; justify-content: space-between; align-items: baseline; }
+  .result-total .t-label { font-size: 15px; font-weight: 600; }
+  .result-total .t-val { font-family: var(--mono); font-size: 28px; font-weight: 500; color: var(--accent); }
+  .result-unit { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; margin-top: 4px; }
+  .result-ganancia { display: flex; justify-content: space-between; margin-top: 10px; background: #1a2200; border-radius: 8px; padding: 8px 12px; }
+  .rg-label { font-size: 12px; color: var(--accent-dim); }
+  .rg-val { font-family: var(--mono); font-size: 14px; color: var(--accent); }
+
+  /* Copy button */
+  .copy-btn { width: 100%; margin-top: 12px; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 10px; font-family: var(--sans); font-size: 14px; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .copy-btn:active { background: var(--surface2); transform: scale(0.98); }
+  .copy-btn.copied { border-color: var(--accent); color: var(--accent); }
+
+  /* Alerta cantidad mínima */
+  .alert { background: #1a0a0a; border: 1px solid #4d1a1a; color: #ff8080; border-radius: 8px; padding: 10px 14px; font-size: 12px; margin-top: 8px; display: none; }
+  .alert.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Cotizador</h1>
+  <div class="tag">CINTAS IMPRESAS</div>
+</div>
+
+<!-- TIPO -->
+<div class="section">
+  <div class="section-label">Tipo de cinta</div>
+  <div class="tipo-grid">
+    <button class="tipo-btn active" data-tipo="polipropileno" onclick="setTipo(this)">
+      Polipropileno<span>BOPP impresa</span>
+    </button>
+    <button class="tipo-btn" data-tipo="papel" onclick="setTipo(this)">
+      Papel engomado<span>Agua activada</span>
+    </button>
+  </div>
+</div>
+
+<!-- MEDIDAS -->
+<div class="section" id="sec-medidas">
+  <div class="section-label">Medidas</div>
+  <div class="medida-row">
+    <div class="select-wrap">
+      <label>Ancho (mm)</label>
+      <select id="sel-ancho" onchange="calcular()"></select>
+    </div>
+    <div class="select-wrap">
+      <label>Largo (m)</label>
+      <select id="sel-largo" onchange="calcular()"></select>
+    </div>
+  </div>
+</div>
+
+<!-- COLOR -->
+<div class="section">
+  <div class="section-label">Color de impresión</div>
+  <div class="color-grid" id="color-grid">
+    <button class="color-btn active" data-color="TRANSPA" onclick="setColor(this)">Transpa</button>
+    <button class="color-btn" data-color="BLANCO" onclick="setColor(this)">Blanco</button>
+    <button class="color-btn" data-color="AMARILLO" onclick="setColor(this)">Amarillo</button>
+  </div>
+</div>
+
+<!-- CANTIDAD -->
+<div class="section">
+  <div class="section-label">Cantidad</div>
+  <div class="qty-grid" id="qty-grid"></div>
+  <div class="alert" id="alert-qty"></div>
+</div>
+
+<!-- EXTRAS -->
+<div class="section" id="sec-extras">
+  <div class="section-label">Extras</div>
+  <div class="extras-grid">
+    <div class="extra-row" onclick="toggleExtra('diseño')">
+      <div>
+        <div class="extra-label">Diseño desde foto</div>
+        <div class="extra-price">+$3 por polímero</div>
+      </div>
+      <div class="toggle" id="toggle-diseño"></div>
+    </div>
+    <div class="extra-row" id="row-2colores" onclick="toggleExtra('2colores')">
+      <div>
+        <div class="extra-label">Trabajo a 2 colores</div>
+        <div class="extra-price">+10% recargo (mín. 5 cajas)</div>
+      </div>
+      <div class="toggle" id="toggle-2colores"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MARGEN -->
+<div class="section">
+  <div class="section-label">Tu margen de ganancia</div>
+  <div class="margen-wrap">
+    <div class="margen-header">
+      <span>Margen</span>
+      <div class="margen-val" id="margen-display">30%</div>
+    </div>
+    <input type="range" min="5" max="100" value="30" step="1" id="slider-margen" oninput="updateMargen(this.value)">
+  </div>
+</div>
+
+<!-- RESULTADO -->
+<div class="result-card" id="result-card">
+  <div class="result-invalid" id="result-invalid">Completá todos los campos para ver el precio</div>
+  <div id="result-content" style="display:none">
+    <div class="result-row"><span class="r-label">Precio fábrica (caja)</span><span class="r-val" id="r-fabrica">—</span></div>
+    <div class="result-row" id="row-polimero" style="display:none"><span class="r-label">Polímero/diseño</span><span class="r-val" id="r-polimero">—</span></div>
+    <div class="result-row" id="row-recargo" style="display:none"><span class="r-label">Recargo 2 colores</span><span class="r-val" id="r-recargo">—</span></div>
+    <hr class="result-divider">
+    <div class="result-total">
+      <span class="t-label">Precio al cliente</span>
+      <span class="t-val" id="r-total">—</span>
+    </div>
+    <div class="result-unit" id="r-unit">— por rollo</div>
+    <div class="result-ganancia">
+      <span class="rg-label">Tu ganancia estimada</span>
+      <span class="rg-val" id="r-ganancia">—</span>
+    </div>
+  </div>
+</div>
+
+<button class="copy-btn" id="copy-btn" onclick="copiarMensaje()">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+  Copiar cotización para WhatsApp
+</button>
+
+<script>
+// ─── DATOS ───────────────────────────────────────────────────────────────────
+const PRECIOS = {
+  polipropileno: {
+    // { ancho, largo, color: precio_por_caja_segun_cantidad }
+    // Estructura: [ancho, largo] => { TRANSPA: {18, 36, 72, 108}, BLANCO: {...}, AMARILLO: {...} }
+    data: [
+      // 18 rollos
+      { ancho: 24, largo: 50, TRANSPA: { 18: null, 36: 27, 72: 15, 108: 0.49*72 }, BLANCO: { 18: 39, 36: null, 72: 28, 108: 0.87*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.13*72 } },
+      { ancho: 36, largo: 50, TRANSPA: { 18: null, 36: 53, 72: null, 108: 0.85*72 }, BLANCO: { 18: 70, 36: null, 72: null, 108: 1.38*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.79*72 } },
+      { ancho: 48, largo: 50, TRANSPA: { 18: null, 36: 44, 72: 28, 108: 0.79*72 }, BLANCO: { 18: 68, 36: null, 72: 44, 108: 1.26*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.58*72 } },
+      { ancho: 48, largo: 90, TRANSPA: { 18: null, 36: 82, 72: null, 108: 1.59*72 }, BLANCO: { 18: 115, 36: null, 72: null, 108: 2.21*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 2.76*72 } },
+    ],
+    cantidades: [
+      { label: '18', sub: '18 rollos', rollos: 18, cajas: 0.5 },
+      { label: '36', sub: '1 caja', rollos: 36, cajas: 1 },
+      { label: '72', sub: '2 cajas', rollos: 72, cajas: 2 },
+      { label: '108+', sub: '3+ cajas', rollos: 108, cajas: 3 },
+    ],
+    colores: ['TRANSPA', 'BLANCO', 'AMARILLO'],
+    // Polímeros por pista
+    polimero: {
+      pistas: {
+        '24-50-TRANSPA': 4, '48-50-TRANSPA': 2, '48-90-TRANSPA': 1,
+        '24-50-BLANCO': 1, '36-50-BLANCO': 1, '48-50-BLANCO': 1, '48-90-BLANCO': 1,
+        '24-50-AMARILLO': 1, '36-50-AMARILLO': 1, '48-50-AMARILLO': 1, '48-90-AMARILLO': 1,
+      },
+      costoPorPista: 20,
+    }
+  },
+  papel: {
+    data: [
+      { ancho: 25, largo: 40, MARRON: { 20: 27, 100: 1*20 }, BLANCO: { 20: 28, 100: 1.1*20 } },
+      { ancho: 50, largo: 40, MARRON: { 20: 54, 100: 2*20 }, BLANCO: { 20: 57, 100: 2.19*20 } },
+      { ancho: 100, largo: 40, MARRON: { 20: 109, 100: 4*20 }, BLANCO: { 20: 114, 100: 4.38*20 } },
+    ],
+    cantidades: [
+      { label: '20', sub: '1 caja', rollos: 20, cajas: 1 },
+      { label: '100+', sub: '5+ cajas', rollos: 100, cajas: 5 },
+    ],
+    colores: ['MARRON', 'BLANCO'],
+    polimero: { costoPorColor: 18 }
+  }
+};
+
+// ─── ESTADO ──────────────────────────────────────────────────────────────────
+let state = {
+  tipo: 'polipropileno',
+  ancho: null,
+  largo: null,
+  color: 'TRANSPA',
+  cantidad: null,
+  extras: { diseño: false, '2colores': false },
+  margen: 30,
+};
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  renderMedidas();
+  renderCantidades();
+  renderColores();
+}
+
+function renderMedidas() {
+  const data = PRECIOS[state.tipo].data;
+  const anchos = [...new Set(data.map(r => r.ancho))];
+  const largos = [...new Set(data.map(r => r.largo))];
+  const sa = document.getElementById('sel-ancho');
+  const sl = document.getElementById('sel-largo');
+  sa.innerHTML = anchos.map(a => `<option value="${a}">${a} mm</option>`).join('');
+  sl.innerHTML = largos.map(l => `<option value="${l}">${l} m</option>`).join('');
+  state.ancho = anchos[0];
+  state.largo = largos[0];
+}
+
+function renderCantidades() {
+  const qtys = PRECIOS[state.tipo].cantidades;
+  const grid = document.getElementById('qty-grid');
+  grid.innerHTML = qtys.map(q => `
+    <button class="qty-btn${state.cantidad === q.rollos ? ' active' : ''}" 
+      data-rollos="${q.rollos}" onclick="setCantidad(this, ${q.rollos})">
+      ${q.label}<span>${q.sub}</span>
+    </button>`).join('');
+}
+
+function renderColores() {
+  const colores = PRECIOS[state.tipo].colores;
+  const grid = document.getElementById('color-grid');
+  const defaultColor = colores[0];
+  state.color = defaultColor;
+  const labels = { TRANSPA: 'Transpa', BLANCO: 'Blanco', AMARILLO: 'Amarillo', MARRON: 'Marrón' };
+  grid.innerHTML = colores.map(c => `
+    <button class="color-btn${c === defaultColor ? ' active' : ''}" 
+      data-color="${c}" onclick="setColor(this)">${labels[c] || c}</button>`
+  ).join('');
+  // Ajustar grid
+  grid.style.gridTemplateColumns = colores.length === 2 ? '1fr 1fr' : 'repeat(3, 1fr)';
+}
+
+// ─── SETTERS ─────────────────────────────────────────────────────────────────
+function setTipo(btn) {
+  document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.tipo = btn.dataset.tipo;
+  state.cantidad = null;
+  state.color = null;
+  // Mostrar/ocultar extras según tipo
+  document.getElementById('sec-extras').style.display = state.tipo === 'polipropileno' ? 'block' : 'block';
+  document.getElementById('row-2colores').style.display = state.tipo === 'polipropileno' ? 'flex' : 'none';
+  renderMedidas();
+  renderCantidades();
+  renderColores();
+  calcular();
+}
+
+function setColor(btn) {
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.color = btn.dataset.color;
+  calcular();
+}
+
+function setCantidad(btn, rollos) {
+  document.querySelectorAll('.qty-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.cantidad = rollos;
+  calcular();
+}
+
+function toggleExtra(key) {
+  state.extras[key] = !state.extras[key];
+  document.getElementById('toggle-' + key).classList.toggle('on', state.extras[key]);
+  calcular();
+}
+
+function updateMargen(val) {
+  state.margen = parseInt(val);
+  document.getElementById('margen-display').textContent = val + '%';
+  calcular();
+}
+
+// ─── CÁLCULO ─────────────────────────────────────────────────────────────────
+function calcular() {
+  state.ancho = parseInt(document.getElementById('sel-ancho').value);
+  state.largo = parseInt(document.getElementById('sel-largo').value);
+
+  const invalid = document.getElementById('result-invalid');
+  const content = document.getElementById('result-content');
+  const alertEl = document.getElementById('alert-qty');
+
+  if (!state.cantidad || !state.color || !state.ancho || !state.largo) {
+    invalid.style.display = 'block';
+    content.style.display = 'none';
+    alertEl.classList.remove('show');
+    return;
+  }
+
+  // Buscar precio base
+  const data = PRECIOS[state.tipo].data;
+  const fila = data.find(r => r.ancho === state.ancho && r.largo === state.largo);
+  if (!fila) { invalid.textContent = 'Combinación no disponible'; invalid.style.display = 'block'; content.style.display = 'none'; return; }
+
+  const preciosPorQty = fila[state.color];
+  if (!preciosPorQty) { invalid.textContent = 'Color no disponible para esta medida'; invalid.style.display = 'block'; content.style.display = 'none'; return; }
+
+  // Precio de fábrica por caja
+  const qtysDisp = PRECIOS[state.tipo].cantidades;
+  const qtyCurrent = qtysDisp.find(q => q.rollos === state.cantidad);
+  let precioCaja = preciosPorQty[state.cantidad];
+  if (precioCaja === null || precioCaja === undefined) {
+    // Buscar la cantidad más cercana disponible
+    alertEl.innerHTML = `⚠ Esta combinación no tiene precio para ${state.cantidad} rollos. Consultá a la fábrica.`;
+    alertEl.classList.add('show');
+    invalid.textContent = 'Sin precio para esta combinación';
+    invalid.style.display = 'block';
+    content.style.display = 'none';
+    return;
+  }
+  alertEl.classList.remove('show');
+
+  // El precio del PDF para polipropileno ya es por caja (36 o 18 rollos)
+  // Para 108+, el precio es por rollo × 72 que calculamos arriba
+  let precioCajaFinal = precioCaja; // precio fábrica total
+
+  // Extras polímero/diseño
+  let extraPoliTotal = 0;
+  let extraPoliLabel = '';
+  if (state.tipo === 'polipropileno') {
+    const polData = PRECIOS.polipropileno.polimero;
+    const key = `${state.ancho}-${state.largo}-${state.color}`;
+    const pistas = polData.pistas[key] || 1;
+    const costoPolimero = pistas * polData.costoPorPista;
+    if (state.extras.diseño) extraPoliTotal += 3; // diseño desde foto
+    // polímero siempre aplica (ya está en precio base según lista, pero lo mostramos)
+    // En realidad el polímero es costo único de setup — lo mostramos solo si diseño
+    if (state.extras.diseño) {
+      extraPoliLabel = `$3 (diseño)`;
+      document.getElementById('row-polimero').style.display = 'flex';
+      document.getElementById('r-polimero').textContent = `+$${extraPoliTotal.toFixed(0)}`;
+    } else {
+      document.getElementById('row-polimero').style.display = 'none';
+    }
+  } else {
+    // Papel: polímero por color $18
+    if (state.extras.diseño) {
+      extraPoliTotal += 3 + 18;
+      document.getElementById('row-polimero').style.display = 'flex';
+      document.getElementById('r-polimero').textContent = `+$21 (diseño+polím.)`;
+    } else {
+      document.getElementById('row-polimero').style.display = 'none';
+    }
+  }
+
+  // Recargo 2 colores
+  let recargo2c = 0;
+  const cantidadCajas = qtyCurrent ? qtyCurrent.cajas : 1;
+  if (state.extras['2colores']) {
+    if (cantidadCajas < 5) {
+      document.getElementById('row-recargo').style.display = 'flex';
+      document.getElementById('r-recargo').textContent = 'Mín. 5 cajas';
+      recargo2c = 0;
+    } else {
+      recargo2c = precioCajaFinal * 0.10;
+      document.getElementById('row-recargo').style.display = 'flex';
+      document.getElementById('r-recargo').textContent = `+$${recargo2c.toFixed(0)}`;
+    }
+  } else {
+    document.getElementById('row-recargo').style.display = 'none';
+  }
+
+  const costoTotal = precioCajaFinal + extraPoliTotal + recargo2c;
+  const precioCliente = costoTotal / (1 - state.margen / 100);
+  const ganancia = precioCliente - costoTotal;
+  const rollos = state.cantidad;
+  const precioXRollo = precioCliente / rollos;
+
+  // Render
+  document.getElementById('r-fabrica').textContent = `$${Math.round(precioCajaFinal)}`;
+  document.getElementById('r-total').textContent = `$${Math.round(precioCliente)}`;
+  document.getElementById('r-unit').textContent = `$${precioXRollo.toFixed(0)} por rollo · ${rollos} rollos`;
+  document.getElementById('r-ganancia').textContent = `$${Math.round(ganancia)}`;
+  invalid.style.display = 'none';
+  content.style.display = 'block';
+
+  // Guardar para copiar
+  window._cotizacion = {
+    tipo: state.tipo === 'polipropileno' ? 'Polipropileno BOPP' : 'Papel engomado',
+    medida: `${state.ancho}mm × ${state.largo}m`,
+    color: state.color,
+    cantidad: `${rollos} rollos`,
+    precio: Math.round(precioCliente),
+    xrollo: Math.round(precioXRollo),
+  };
+}
+
+function copiarMensaje() {
+  const c = window._cotizacion;
+  if (!c) return;
+  const txt = `Cotización cinta impresa\n` +
+    `• Tipo: ${c.tipo}\n` +
+    `• Medida: ${c.medida}\n` +
+    `• Color: ${c.color}\n` +
+    `• Cantidad: ${c.cantidad}\n` +
+    `• *Precio total: $${c.precio}*\n` +
+    `• Precio por rollo: $${c.xrollo}`;
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar cotización para WhatsApp`; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
