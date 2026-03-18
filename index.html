@@ -478,7 +478,7 @@ async function registrarVenta() {
 
   try {
     const resp=await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:A:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME+'!A1')}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
       {
         method:'POST',
         headers:{'Authorization':`Bearer ${accessToken}`,'Content-Type':'application/json'},
