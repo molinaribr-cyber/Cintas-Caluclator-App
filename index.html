@@ -215,9 +215,9 @@ const PRECIOS = {
     // Estructura: [ancho, largo] => { TRANSPA: {18, 36, 72, 108}, BLANCO: {...}, AMARILLO: {...} }
     data: [
       // 18 rollos
-      { ancho: 24, largo: 50, TRANSPA: { 18: null, 36: 27, 72: 15, 108: 0.49*72 }, BLANCO: { 18: 39, 36: null, 72: 28, 108: 0.87*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.13*72 } },
+      { ancho: 24, largo: 50, TRANSPA: { 18: 15, 36: 27, 72: 49, 108: 0.49*108 }, BLANCO: { 18: 39, 36: null, 72: 28, 108: 0.87*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.13*72 } },
       { ancho: 36, largo: 50, TRANSPA: { 18: null, 36: 53, 72: null, 108: 0.85*72 }, BLANCO: { 18: 70, 36: null, 72: null, 108: 1.38*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.79*72 } },
-      { ancho: 48, largo: 50, TRANSPA: { 18: null, 36: 44, 72: 28, 108: 0.79*72 }, BLANCO: { 18: 68, 36: null, 72: 44, 108: 1.26*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.58*72 } },
+      { ancho: 48, largo: 50, TRANSPA: { 18: 28, 36: 44, 72: 77, 108: 0.79*108 }, BLANCO: { 18: 68, 36: null, 72: 44, 108: 1.26*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 1.58*72 } },
       { ancho: 48, largo: 90, TRANSPA: { 18: null, 36: 82, 72: null, 108: 1.59*72 }, BLANCO: { 18: 115, 36: null, 72: null, 108: 2.21*72 }, AMARILLO: { 18: null, 36: null, 72: null, 108: 2.76*72 } },
     ],
     cantidades: [
@@ -462,21 +462,66 @@ function calcular() {
   };
 }
 
+function calcularPrecioCliente(precioCajaFabrica) {
+  return Math.round(precioCajaFabrica / (1 - state.margen / 100));
+}
+
+function getPrecioParaCantidad(rollos) {
+  const data = PRECIOS[state.tipo].data;
+  const fila = data.find(r => r.ancho === state.ancho && r.largo === state.largo);
+  if (!fila) return null;
+  const preciosPorQty = fila[state.color];
+  if (!preciosPorQty) return null;
+  const precioCaja = preciosPorQty[rollos];
+  if (precioCaja === null || precioCaja === undefined) return null;
+  return calcularPrecioCliente(precioCaja);
+}
+
 function copiarMensaje() {
   const c = window._cotizacion;
   if (!c) return;
-  const txt = `Cotización cinta impresa\n` +
-    `• Tipo: ${c.tipo}\n` +
+
+  const colorLabel = { TRANSPA: 'transparente', BLANCO: 'blanco', AMARILLO: 'amarillo', MARRON: 'marrón' }[state.color] || state.color;
+  const header = `Cotización cinta adhesiva impresa\n` +
     `• Medida: ${c.medida}\n` +
-    `• Color: ${c.color}\n` +
-    `• Cantidad: ${c.cantidad}\n` +
-    `• *Precio total: $${c.precio}*\n` +
-    `• Precio por rollo: $${c.xrollo}`;
+    `• Color: ${colorLabel}\n`;
+
+  let body = '';
+
+  if (state.cantidad === 18) {
+    body = `• *18 rollos: $${c.precio}*\n• Precio por rollo: $${c.xrollo}`;
+
+  } else if (state.cantidad === 36) {
+    const precio72 = getPrecioParaCantidad(72);
+    body = `• *36 rollos (1 caja): $${c.precio}*\n`;
+    if (precio72) {
+      const xrollo72 = Math.round(precio72 / 72);
+      body += `• 72 rollos (2 cajas): $${precio72} ($${xrollo72}/rollo)`;
+    }
+
+  } else if (state.cantidad === 72) {
+    const precio36 = getPrecioParaCantidad(36);
+    if (precio36) {
+      const xrollo36 = Math.round(precio36 / 36);
+      body += `• 36 rollos (1 caja): $${precio36} ($${xrollo36}/rollo)\n`;
+    }
+    body += `• *72 rollos (2 cajas): $${c.precio}*\n• Precio por rollo: $${c.xrollo}`;
+
+  } else {
+    body = `• *${c.cantidad}: $${c.precio}*\n• Precio por rollo: $${c.xrollo}`;
+  }
+
+  const footer = `\n\nConsultanos por otras medidas o cantidades.`;
+  const txt = header + body + footer;
+
   navigator.clipboard.writeText(txt).then(() => {
     const btn = document.getElementById('copy-btn');
     btn.textContent = '✓ Copiado!';
     btn.classList.add('copied');
-    setTimeout(() => { btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar cotización para WhatsApp`; btn.classList.remove('copied'); }, 2000);
+    setTimeout(() => {
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar cotización para WhatsApp`;
+      btn.classList.remove('copied');
+    }, 2000);
   });
 }
 
