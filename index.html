@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cotizador Cintas</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;
+    --border:#2e2e2e;--accent:#d4f047;--accent-dim:#a8c038;
+    --text:#f0f0f0;--muted:#888;--blue:#378ADD;--green:#4CAF50;
+    --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:16px}
+
+  .header{display:flex;align-items:baseline;gap:10px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .header h1{font-size:18px;font-weight:600;letter-spacing:-0.5px}
+  .header .tag{font-family:var(--mono);font-size:10px;color:var(--accent);background:#1e2a00;padding:3px 8px;border-radius:4px}
+
+  .section{margin-bottom:20px}
+  .section-label{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+
+  .medida-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .select-wrap{position:relative}
+  .select-wrap select{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px 36px 12px 14px;border-radius:10px;font-family:var(--sans);font-size:15px;appearance:none;cursor:pointer}
+  .select-wrap::after{content:'▾';position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:12px}
+  .select-wrap label{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:5px}
+
+  .color-grid{display:grid;gap:8px}
+  .color-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:10px 6px;border-radius:10px;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center}
+  .color-btn.active{background:var(--accent);border-color:var(--accent);color:#0f0f0f}
+
+  .qty-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .qty-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:10px 4px;border-radius:10px;font-family:var(--mono);font-size:13px;cursor:pointer;transition:all .15s;text-align:center}
+  .qty-btn.active{background:var(--accent);border-color:var(--accent);color:#0f0f0f}
+  .qty-btn span{display:block;font-size:9px;margin-top:1px;opacity:.7}
+  .qty-btn:disabled{opacity:.25;pointer-events:none}
+
+  .extras-grid{display:grid;gap:8px}
+  .extra-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer}
+  .extra-label{font-size:13px}
+  .extra-price{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .toggle{width:40px;height:22px;background:var(--border);border-radius:11px;position:relative;transition:background .2s;flex-shrink:0}
+  .toggle.on{background:var(--accent)}
+  .toggle::after{content:'';width:16px;height:16px;background:white;border-radius:50%;position:absolute;top:3px;left:3px;transition:transform .2s}
+  .toggle.on::after{transform:translateX(18px)}
+
+  .dolar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px}
+  .dolar-wrap label{font-size:13px;white-space:nowrap;flex-shrink:0}
+  .dolar-input-wrap{position:relative;flex:1}
+  .dolar-input-wrap::before{content:'$';position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-family:var(--mono);font-size:14px}
+  .dolar-input-wrap input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 12px 10px 24px;border-radius:8px;font-family:var(--mono);font-size:15px}
+  .dolar-badge{font-family:var(--mono);font-size:10px;color:var(--accent);background:#1e2a00;padding:3px 8px;border-radius:4px;white-space:nowrap}
+
+  .margen-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .margen-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .margen-header span{font-size:13px}
+  .margen-val{font-family:var(--mono);font-size:16px;color:var(--accent);font-weight:500}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+
+  /* Cliente input */
+  .cliente-wrap{position:relative}
+  .cliente-wrap input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:10px;font-family:var(--sans);font-size:15px}
+  .cliente-wrap input:focus{outline:none;border-color:var(--accent)}
+  .cliente-wrap input::placeholder{color:var(--muted)}
+
+  /* Resultado */
+  .result-card{background:var(--surface2);border:1px solid var(--accent);border-radius:14px;padding:20px;margin-top:8px}
+  .result-invalid{text-align:center;color:var(--muted);font-size:13px;padding:24px 0}
+  .result-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .result-row .r-label{font-size:13px;color:var(--muted)}
+  .result-row .r-val{font-family:var(--mono);font-size:14px}
+  .result-divider{border:none;border-top:1px solid var(--border);margin:12px 0}
+  .result-total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .result-total .t-label{font-size:15px;font-weight:600}
+  .result-total .t-val{font-family:var(--mono);font-size:28px;font-weight:500;color:var(--accent)}
+  .result-unit{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;margin-top:4px}
+  .result-pesos{background:#0a1628;border:1px solid #1e2d4a;border-radius:10px;padding:12px 14px;margin-top:12px}
+  .result-pesos .p-label{font-size:12px;color:#8a9ab8;margin-bottom:4px}
+  .result-pesos .p-val{font-family:var(--mono);font-size:24px;font-weight:500;color:var(--blue)}
+  .result-pesos .p-unit{font-family:var(--mono);font-size:11px;color:#4a5a78;margin-top:2px}
+  .result-ganancia{display:flex;justify-content:space-between;margin-top:10px;background:#1a2200;border-radius:8px;padding:8px 12px}
+  .rg-label{font-size:12px;color:var(--accent-dim)}
+  .rg-val{font-family:var(--mono);font-size:14px;color:var(--accent)}
+
+  /* Buttons */
+  .btns-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .copy-btn{background:transparent;border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-family:var(--sans);font-size:14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .copy-btn:active{background:var(--surface2);transform:scale(0.98)}
+  .copy-btn.copied{border-color:var(--accent);color:var(--accent)}
+  .sold-btn{background:var(--green);border:none;color:#fff;padding:12px;border-radius:10px;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .sold-btn:hover{background:#43a047}
+  .sold-btn:active{transform:scale(0.98)}
+  .sold-btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* Auth status */
+  .auth-bar{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+  .auth-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+  .auth-dot.ok{background:var(--green)}
+  .auth-dot.loading{background:var(--blue);animation:blink 1s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .auth-text{font-size:12px;color:var(--muted);flex:1}
+  .auth-btn{font-family:var(--mono);font-size:10px;color:var(--accent);background:#1e2a00;border:none;padding:4px 10px;border-radius:4px;cursor:pointer}
+
+  /* Toast */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:10px;font-size:13px;transition:transform .3s;z-index:999;white-space:nowrap}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.ok{border-color:var(--green);color:var(--green)}
+  .toast.err{border-color:#ff5252;color:#ff5252}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Cotizador</h1>
+  <div class="tag">CINTAS IMPRESAS</div>
+</div>
+
+<!-- AUTH BAR -->
+<div class="auth-bar">
+  <div class="auth-dot" id="auth-dot"></div>
+  <span class="auth-text" id="auth-text">Conectate a Google para registrar ventas en el Sheets</span>
+  <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Conectar</button>
+</div>
+
+<!-- DÓLAR -->
+<div class="section">
+  <div class="section-label">Cotización del dólar</div>
+  <div class="dolar-wrap">
+    <label>USD oficial</label>
+    <div class="dolar-input-wrap">
+      <input type="number" id="input-dolar" placeholder="ej: 1050" oninput="calcular()" min="1">
+    </div>
+    <div class="dolar-badge" id="dolar-badge">sin cotización</div>
+  </div>
+</div>
+
+<!-- MEDIDAS -->
+<div class="section">
+  <div class="section-label">Medidas</div>
+  <div class="medida-row">
+    <div class="select-wrap">
+      <label>Ancho (mm)</label>
+      <select id="sel-ancho" onchange="onAnchoChange()"></select>
+    </div>
+    <div class="select-wrap">
+      <label>Largo (m)</label>
+      <select id="sel-largo" onchange="onLargoChange()"></select>
+    </div>
+  </div>
+</div>
+
+<!-- COLOR -->
+<div class="section">
+  <div class="section-label">Color de impresión</div>
+  <div class="color-grid" id="color-grid"></div>
+</div>
+
+<!-- CANTIDAD -->
+<div class="section">
+  <div class="section-label">Cantidad</div>
+  <div class="qty-grid" id="qty-grid"></div>
+</div>
+
+<!-- EXTRAS -->
+<div class="section">
+  <div class="section-label">Extras</div>
+  <div class="extras-grid">
+    <div class="extra-row" onclick="toggleExtra('polimero')">
+      <div><div class="extra-label">Polímero</div><div class="extra-price">+$18 por color</div></div>
+      <div class="toggle" id="toggle-polimero"></div>
+    </div>
+    <div class="extra-row" onclick="toggleExtra('diseño')">
+      <div><div class="extra-label">Diseño desde foto</div><div class="extra-price">+$3</div></div>
+      <div class="toggle" id="toggle-diseño"></div>
+    </div>
+    <div class="extra-row" onclick="toggleExtra('2colores')">
+      <div><div class="extra-label">Trabajo a 2 colores</div><div class="extra-price">+10% (mín. 5 cajas)</div></div>
+      <div class="toggle" id="toggle-2colores"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MARGEN -->
+<div class="section">
+  <div class="section-label">Tu margen de ganancia</div>
+  <div class="margen-wrap">
+    <div class="margen-header">
+      <span>Margen</span>
+      <div class="margen-val" id="margen-display">30%</div>
+    </div>
+    <input type="range" min="5" max="100" value="30" step="1" id="slider-margen" oninput="updateMargen(this.value)">
+  </div>
+</div>
+
+<!-- CLIENTE -->
+<div class="section">
+  <div class="section-label">Cliente</div>
+  <div class="cliente-wrap">
+    <input type="text" id="input-cliente" placeholder="Nombre o empresa del comprador">
+  </div>
+</div>
+
+<!-- RESULTADO -->
+<div class="result-card">
+  <div class="result-invalid" id="result-invalid">Completá todos los campos para ver el precio</div>
+  <div id="result-content" style="display:none">
+    <div class="result-row"><span class="r-label">Precio fábrica (USD)</span><span class="r-val" id="r-fabrica">—</span></div>
+    <div class="result-row" id="row-polimero" style="display:none"><span class="r-label">Polímero</span><span class="r-val">+$18</span></div>
+    <div class="result-row" id="row-diseño"   style="display:none"><span class="r-label">Diseño</span><span class="r-val">+$3</span></div>
+    <div class="result-row" id="row-recargo"  style="display:none"><span class="r-label">Recargo 2 colores</span><span class="r-val" id="r-recargo">—</span></div>
+    <hr class="result-divider">
+    <div class="result-total">
+      <span class="t-label">Precio al cliente (USD)</span>
+      <span class="t-val" id="r-total">—</span>
+    </div>
+    <div class="result-unit" id="r-unit">—</div>
+    <div class="result-pesos" id="result-pesos" style="display:none">
+      <div class="p-label">Precio al cliente en pesos</div>
+      <div class="p-val" id="r-pesos">—</div>
+      <div class="p-unit" id="r-pesos-unit">—</div>
+    </div>
+    <div class="result-ganancia">
+      <span class="rg-label">Tu ganancia estimada (USD)</span>
+      <span class="rg-val" id="r-ganancia">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- BOTONES -->
+<div class="btns-row">
+  <button class="copy-btn" id="copy-btn" onclick="copiarMensaje()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    Copiar WA
+  </button>
+  <button class="sold-btn" id="sold-btn" onclick="registrarVenta()" disabled>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+    Registrar venta
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const SHEET_ID    = '11PqstEfNVn7jjRPWunNz0FlPDAJSYmJB2HgaMi1KiPE';
+const CLIENT_ID   = '609652365955-su0i6umo83et2gs74qg0saefb3vo1tf5.apps.googleusercontent.com';
+const SHEET_NAME  = 'Pedidos';
+const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets';
+
+// ── PRECIOS ───────────────────────────────────────────────────────────────────
+const DATA = [
+  { ancho:24, largo:50, TRANSPA:{18:15,36:27,72:49,108:0.49*108}, BLANCO:{36:39,72:28,108:0.87*72} },
+  { ancho:36, largo:50, TRANSPA:{36:53,72:null,108:0.85*72},       BLANCO:{18:70,36:53,72:null,108:1.38*72} },
+  { ancho:48, largo:50, TRANSPA:{18:28,36:44,72:77,108:0.79*108},  BLANCO:{36:68,72:44,108:1.26*72} },
+  { ancho:48, largo:90, TRANSPA:{36:82,72:null,108:1.59*72},        BLANCO:{18:115,36:82,72:null,108:2.21*72} },
+];
+const CANTIDADES = [
+  {label:'18',  sub:'18 rollos',rollos:18, cajas:0.5},
+  {label:'36',  sub:'1 caja',  rollos:36, cajas:1},
+  {label:'72',  sub:'2 cajas', rollos:72, cajas:2},
+  {label:'108+',sub:'3+ cajas',rollos:108,cajas:3},
+];
+
+// ── ESTADO ────────────────────────────────────────────────────────────────────
+const st = {
+  ancho:null,largo:null,color:null,cantidad:null,
+  extras:{polimero:false,diseño:false,'2colores':false},
+  margen:30
+};
+let tokenClient = null;
+let accessToken  = null;
+
+// ── GOOGLE AUTH ───────────────────────────────────────────────────────────────
+window.onload = function() {
+  google.accounts.id.initialize({ client_id: CLIENT_ID });
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { setAuthState('error'); return; }
+      accessToken = resp.access_token;
+      setAuthState('ok');
+    }
+  });
+  init();
+};
+
+function handleAuth() {
+  if (accessToken) {
+    accessToken = null;
+    setAuthState('disconnected');
+    return;
+  }
+  setAuthState('loading');
+  tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+function setAuthState(state) {
+  const dot  = document.getElementById('auth-dot');
+  const txt  = document.getElementById('auth-text');
+  const btn  = document.getElementById('auth-btn');
+  const sbtn = document.getElementById('sold-btn');
+  dot.className = 'auth-dot';
+  if (state === 'ok') {
+    dot.classList.add('ok');
+    txt.textContent = 'Conectado a Google Sheets ✓';
+    btn.textContent = 'Desconectar';
+    sbtn.disabled = false;
+  } else if (state === 'loading') {
+    dot.classList.add('loading');
+    txt.textContent = 'Conectando...';
+    btn.textContent = 'Cancelar';
+  } else if (state === 'error') {
+    txt.textContent = 'Error al conectar. Intentá de nuevo.';
+    btn.textContent = 'Conectar';
+  } else {
+    txt.textContent = 'Conectate a Google para registrar ventas en el Sheets';
+    btn.textContent = 'Conectar';
+    sbtn.disabled = true;
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function getFila()  { return DATA.find(r => r.ancho===st.ancho && r.largo===st.largo)||null; }
+function getPrecioFabrica(rollos) {
+  const f = getFila();
+  if (!f||!st.color||!f[st.color]) return null;
+  const p = f[st.color][rollos];
+  return (p===null||p===undefined) ? null : p;
+}
+function precioConMargen(fab) { return Math.round(fab/(1-st.margen/100)); }
+function getDolar() { const v=parseFloat(document.getElementById('input-dolar').value); return (v&&v>0)?v:null; }
+function fmtPesos(n) { return '$'+Math.round(n).toLocaleString('es-AR'); }
+
+// ── RENDERS ───────────────────────────────────────────────────────────────────
+function renderLargos() {
+  const largos=[...new Set(DATA.filter(r=>r.ancho===st.ancho).map(r=>r.largo))];
+  document.getElementById('sel-largo').innerHTML=largos.map(l=>`<option value="${l}">${l} m</option>`).join('');
+  st.largo=largos[0];
+}
+function renderColores() {
+  const fila=getFila();
+  const cols=fila?Object.keys(fila).filter(k=>k!=='ancho'&&k!=='largo'):[];
+  const labels={TRANSPA:'Transpa',BLANCO:'Blanco'};
+  const grid=document.getElementById('color-grid');
+  grid.style.gridTemplateColumns=`repeat(${cols.length},1fr)`;
+  grid.innerHTML=cols.map(c=>`<button class="color-btn${st.color===c?' active':''}" onclick="setColor('${c}')">${labels[c]||c}</button>`).join('');
+  if (st.color&&!cols.includes(st.color)) st.color=null;
+}
+function renderCantidades() {
+  document.getElementById('qty-grid').innerHTML=CANTIDADES.map(q=>{
+    const p=getPrecioFabrica(q.rollos);
+    return `<button class="qty-btn${st.cantidad===q.rollos?' active':''}"${p===null?' disabled':''} onclick="setCantidad(${q.rollos})">${q.label}<span>${q.sub}</span></button>`;
+  }).join('');
+}
+
+// ── EVENTOS ───────────────────────────────────────────────────────────────────
+function init() {
+  const anchos=[...new Set(DATA.map(r=>r.ancho))];
+  document.getElementById('sel-ancho').innerHTML=anchos.map(a=>`<option value="${a}">${a} mm</option>`).join('');
+  st.ancho=anchos[0];
+  renderLargos(); renderColores(); renderCantidades(); calcular();
+}
+function onAnchoChange(){ st.ancho=parseInt(document.getElementById('sel-ancho').value);st.color=null;st.cantidad=null;renderLargos();renderColores();renderCantidades();calcular(); }
+function onLargoChange(){ st.largo=parseInt(document.getElementById('sel-largo').value);st.color=null;st.cantidad=null;renderColores();renderCantidades();calcular(); }
+function setColor(c){ st.color=c;st.cantidad=null;renderColores();renderCantidades();calcular(); }
+function setCantidad(r){ st.cantidad=r;renderCantidades();calcular(); }
+function toggleExtra(k){ st.extras[k]=!st.extras[k];document.getElementById('toggle-'+k).classList.toggle('on',st.extras[k]);calcular(); }
+function updateMargen(v){ st.margen=parseInt(v);document.getElementById('margen-display').textContent=v+'%';calcular(); }
+
+// ── CÁLCULO ───────────────────────────────────────────────────────────────────
+function calcular() {
+  const dolar=getDolar();
+  document.getElementById('dolar-badge').textContent=dolar?`1 USD = ${fmtPesos(dolar)}`:'sin cotización';
+  const invalid=document.getElementById('result-invalid');
+  const content=document.getElementById('result-content');
+  if (!st.color||!st.cantidad){ invalid.textContent='Completá todos los campos para ver el precio';invalid.style.display='block';content.style.display='none';return; }
+  const fabrica=getPrecioFabrica(st.cantidad);
+  if (fabrica===null){ invalid.textContent='Sin precio para esta combinación. Consultá a la fábrica.';invalid.style.display='block';content.style.display='none';return; }
+
+  const extraP=st.extras.polimero?18:0;
+  const extraD=st.extras.diseño?3:0;
+  const qc=CANTIDADES.find(q=>q.rollos===st.cantidad);
+  const r2c=st.extras['2colores']&&qc&&qc.cajas>=5?Math.round(fabrica*0.10):0;
+
+  document.getElementById('row-polimero').style.display=st.extras.polimero?'flex':'none';
+  document.getElementById('row-diseño').style.display=st.extras.diseño?'flex':'none';
+  document.getElementById('row-recargo').style.display=st.extras['2colores']?'flex':'none';
+  if (st.extras['2colores']) document.getElementById('r-recargo').textContent=qc&&qc.cajas>=5?`+$${r2c}`:'Mín. 5 cajas';
+
+  const costo=fabrica+extraP+extraD+r2c;
+  const precioCliente=precioConMargen(costo);
+  const ganancia=precioCliente-costo;
+  const xrollo=Math.round(precioCliente/st.cantidad);
+
+  document.getElementById('r-fabrica').textContent=`USD ${Math.round(fabrica)}`;
+  document.getElementById('r-total').textContent=`USD ${precioCliente}`;
+  document.getElementById('r-unit').textContent=`USD ${xrollo} por rollo · ${st.cantidad} rollos`;
+  document.getElementById('r-ganancia').textContent=`USD ${Math.round(ganancia)}`;
+
+  const pesosBlock=document.getElementById('result-pesos');
+  if (dolar) {
+    document.getElementById('r-pesos').textContent=fmtPesos(precioCliente*dolar);
+    document.getElementById('r-pesos-unit').textContent=`${fmtPesos(xrollo*dolar)} por rollo · cotización ${fmtPesos(dolar)}`;
+    pesosBlock.style.display='block';
+  } else { pesosBlock.style.display='none'; }
+
+  invalid.style.display='none'; content.style.display='block';
+  window._cot={fabrica:Math.round(fabrica),precioCliente,xrollo,rollos:st.cantidad,ganancia:Math.round(ganancia),dolar,
+    totalPesos:dolar?Math.round(precioCliente*dolar):null,xrolloPesos:dolar?Math.round(xrollo*dolar):null};
+}
+
+// ── WHATSAPP ──────────────────────────────────────────────────────────────────
+function buildLinea(usd,rollos,dolar){
+  if (!dolar) return `USD ${usd} ($${Math.round(usd/rollos)}/rollo)`;
+  return `USD ${usd} = ${fmtPesos(usd*dolar)} (${fmtPesos(Math.round(usd/rollos*dolar))}/rollo)`;
+}
+function copiarMensaje(){
+  if (!window._cot) return;
+  const {precioCliente,xrollo,rollos,dolar}=window._cot;
+  const colorLabel={TRANSPA:'transparente',BLANCO:'blanco'}[st.color]||st.color;
+  let txt=`Cotización cinta adhesiva impresa\n• Medida: ${st.ancho}mm × ${st.largo}m\n• Color: ${colorLabel}\n`;
+  if (rollos===18) {
+    txt+=`• *18 rollos: ${buildLinea(precioCliente,18,dolar)}*`;
+  } else if (rollos===36) {
+    txt+=`• *36 rollos (1 caja): ${buildLinea(precioCliente,36,dolar)}*`;
+    const f72=getPrecioFabrica(72);
+    if (f72!==null){const p72=precioConMargen(f72);txt+=`\n• 72 rollos (2 cajas): ${buildLinea(p72,72,dolar)}`;}
+  } else if (rollos===72) {
+    const f36=getPrecioFabrica(36);
+    if (f36!==null){const p36=precioConMargen(f36);txt+=`• 36 rollos (1 caja): ${buildLinea(p36,36,dolar)}\n`;}
+    txt+=`• *72 rollos (2 cajas): ${buildLinea(precioCliente,72,dolar)}*`;
+  } else {
+    txt+=`• *${rollos} rollos: ${buildLinea(precioCliente,rollos,dolar)}*`;
+  }
+  txt+=`\n\nConsultanos por otras medidas o cantidades.`;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn=document.getElementById('copy-btn');
+    btn.textContent='✓ Copiado!'; btn.classList.add('copied');
+    setTimeout(()=>{btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar WA`;btn.classList.remove('copied');},2000);
+  });
+}
+
+// ── REGISTRAR VENTA ───────────────────────────────────────────────────────────
+async function registrarVenta() {
+  const c=window._cot;
+  if (!c||!accessToken) return;
+  const cliente=document.getElementById('input-cliente').value.trim()||'Sin nombre';
+  const btn=document.getElementById('sold-btn');
+  btn.disabled=true; btn.textContent='Guardando...';
+
+  // Fecha en formato DD/MM/YYYY
+  const hoy=new Date();
+  const fecha=`${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+
+  // Fila: FECHA|CLIENTE|MEDIDA|COLOR|CANTIDAD|USD FAB|USD CLIENTE|COTIZ $|PRECIO $|MARGEN|GANANCIA USD
+  const colorLabel={TRANSPA:'Transparente',BLANCO:'Blanco'}[st.color]||st.color;
+  const row=[
+    fecha,
+    cliente,
+    `${st.ancho}mm × ${st.largo}m`,
+    colorLabel,
+    st.cantidad,
+    c.fabrica,
+    c.precioCliente,
+    c.dolar||'',
+    c.totalPesos||'',
+    st.margen/100,
+    c.ganancia,
+    '',          // Despacho — se completa a mano
+    'Pendiente', // Estado inicial
+    '',          // Nota
+  ];
+
+  try {
+    const resp=await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:A:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      {
+        method:'POST',
+        headers:{'Authorization':`Bearer ${accessToken}`,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[row]})
+      }
+    );
+    if (!resp.ok) {
+      const err=await resp.json();
+      throw new Error(err.error?.message||'Error desconocido');
+    }
+    showToast('✓ Venta registrada en el Sheets','ok');
+    // Reset cliente
+    document.getElementById('input-cliente').value='';
+  } catch(e) {
+    if (e.message.includes('401')) {
+      accessToken=null; setAuthState('disconnected');
+      showToast('Sesión expirada. Volvé a conectar.','err');
+    } else {
+      showToast('Error: '+e.message,'err');
+    }
+  } finally {
+    btn.disabled=false;
+    btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Registrar venta`;
+  }
+}
+
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+(type||'');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+init();
+</script>
+</body>
+</html>
